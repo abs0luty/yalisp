@@ -186,7 +186,7 @@ void free_parse_result(parse_result res) {
   if (res.is_error) {
     free(res.error_message);
   } else {
-    free_ast_node(res.node); 
+    free_ast_node(res.node);
   }
 }
 
@@ -221,7 +221,7 @@ parse_result parse(const char *input, size_t *pos) {
       return create_parse_error("Unmatched '(' in input");
     }
 
-    (*pos)++; 
+    (*pos)++;
     return create_parse_success(create_list_node(items, length));
   } else if (input[*pos] >= '0' && input[*pos] <= '9') {
     int value = 0;
@@ -240,7 +240,7 @@ parse_result parse(const char *input, size_t *pos) {
     }
     size_t length = *pos - start;
     char *string = strndup(input + start, length);
-    (*pos)++; // Consume closing quote
+    (*pos)++;
     return create_parse_success(create_string_node(string));
   } else if (input[*pos] != '\0') {
     size_t start = *pos;
@@ -275,18 +275,47 @@ result eval_ast_node(ast_node *node) {
 
     if (strcmp(op->symbol_value, "+") == 0) {
       int sum = 0;
+
       for (size_t i = 1; i < node->list.length; i++) {
         result arg_result = eval_ast_node(node->list.items[i]);
-        if (arg_result.is_error) {
-          return arg_result; // Propagate the error
-        }
-        if (arg_result.result_value.type != value_type_int) {
+
+        if (arg_result.is_error)
+          return arg_result;
+
+        if (arg_result.result_value.type != value_type_int)
           return create_error_result("Non-integer argument to +");
-        }
+
         sum += arg_result.result_value.int_value;
-        free_result(arg_result); 
+        free_result(arg_result);
       }
+
       return create_success_result(create_int_value(sum));
+    } else if (strcmp(op->symbol_value, "-") == 0) {
+      result arg_result = eval_ast_node(node->list.items[1]);
+
+      if (arg_result.is_error)
+        return arg_result;
+
+      if (arg_result.result_value.type != value_type_int)
+        return create_error_result("Non-integer argument to +");
+
+      int diff = arg_result.result_value.int_value;
+      free_result(arg_result);
+
+      for (size_t i = 2; i < node->list.length; i++) {
+        result arg_result = eval_ast_node(node->list.items[i]);
+
+        if (arg_result.is_error)
+          return arg_result;
+
+        if (arg_result.result_value.type != value_type_int)
+          return create_error_result("Non-integer argument to +");
+
+        diff -= arg_result.result_value.int_value;
+        free_result(arg_result);
+      }
+
+      return create_success_result(create_int_value(diff));
     } else if (strcmp(op->symbol_value, "concat") == 0) {
       size_t total_length = 0;
       for (size_t i = 1; i < node->list.length; i++) {
